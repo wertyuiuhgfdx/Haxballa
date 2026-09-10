@@ -533,7 +533,7 @@
         <div id="canvas-container">
             <canvas id="gameCanvas" width="1000" height="600"></canvas>
             
-            <div id="replay-banner">🎬 REPETICIÓN<span class="replay-help">P1: ENTER + P2: NUMPAD ENTER para saltar</span></div>
+            <div id="replay-banner">🎬 REPETICIÓN · PULSA 7 PARA OMITIR</div>
 
             <div id="goal-overlay">
                 <div id="goal-text">¡GOL!</div>
@@ -587,7 +587,7 @@
         // Cámara
         let camera = { x: 0, y: 0, zoom: 1, targetZoom: 1 };
         let replaySkipPending = false;
-        const REPLAY_CHAT_KEYS = { p1: 'Enter', p2: 'NumpadEnter' };
+        const REPLAY_SKIP_KEY = 'Digit7';
 
         function initAudio() {
             if (!audioCtx) {
@@ -769,11 +769,14 @@
             if (e.code === 'Escape') { togglePause(); return; }
 
             if (isReplaying) {
-                if (e.code === REPLAY_CHAT_KEYS.p1 || e.code === REPLAY_CHAT_KEYS.p2) {
-                    keys[e.code] = true;
+                // Durante la repetición, la tecla 7 la omite.
+                // Importante: SPACE no se procesa ni puede iniciar ninguna acción del partido.
+                if (e.code === REPLAY_SKIP_KEY) {
+                    e.preventDefault();
+                    if (!replaySkipPending) skipReplay();
+                } else {
                     e.preventDefault();
                 }
-                if (keys[REPLAY_CHAT_KEYS.p1] && keys[REPLAY_CHAT_KEYS.p2] && !replaySkipPending) skipReplay();
                 return;
             }
 
@@ -783,7 +786,11 @@
         });
 
         window.addEventListener('keyup', e => {
-            if (e.code === REPLAY_CHAT_KEYS.p1 || e.code === REPLAY_CHAT_KEYS.p2) { keys[e.code] = false; return; }
+            // No conservar SPACE/otras teclas pulsadas durante la repetición.
+            if (isReplaying || e.code === REPLAY_SKIP_KEY) {
+                keys[e.code] = false;
+                return;
+            }
             if (e.code === 'Enter') return;
             keys[e.code] = false;
         });
@@ -1281,7 +1288,7 @@
             powerEffects.length = 0;
             replayBuffer.length = 0;
             replaySkipPending = false;
-            keys[REPLAY_CHAT_KEYS.p1] = false; keys[REPLAY_CHAT_KEYS.p2] = false;
+            keys[REPLAY_SKIP_KEY] = false; keys['Space'] = false;
             document.getElementById('score-p1').innerText = scoreP1;
             document.getElementById('score-p2').innerText = scoreP2;
             document.getElementById('timer').innerText = "00:00";
@@ -1500,8 +1507,8 @@
             isReplaying = true;
             replayFrameIndex = 0;
             replaySkipPending = false;
-            keys[REPLAY_CHAT_KEYS.p1] = false;
-            keys[REPLAY_CHAT_KEYS.p2] = false;
+            keys[REPLAY_SKIP_KEY] = false;
+            keys['Space'] = false;
             replayBanner.classList.remove('skip');
             replayBanner.style.display = 'block';
         }
@@ -1518,8 +1525,8 @@
             replaySkipPending = false;
             replayBanner.classList.remove('skip');
             replayBanner.style.display = 'none';
-            keys[REPLAY_CHAT_KEYS.p1] = false;
-            keys[REPLAY_CHAT_KEYS.p2] = false;
+            keys[REPLAY_SKIP_KEY] = false;
+            keys['Space'] = false;
             ball.reset(); player1.reset(); player2.reset();
             isGoalScored = false;
             isKickoff = true;
