@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#07080a">
+  <title>Cutebot · Panel de carreras</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600&family=Orbitron:wght@600;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:#07080a; --panel:#14171c; --panel2:#1c2129; --border:#2a2f37;
+      --text:#eef1f4; --muted:#7c8794; --red:#ff2b45; --red-dim:#5c111c;
+      --amber:#ffcc00; --green:#22c55e; --online:#29e7cd;
+    }
+    * { box-sizing:border-box; }
+    html, body { margin:0; min-height:100%; }
+    body {
+      min-height:100vh; padding:16px; display:flex; justify-content:center;
+      color:var(--text); font-family:"IBM Plex Mono",monospace; overflow-x:hidden;
+      background:radial-gradient(1000px 500px at 50% -10%,#1a1013 0%,var(--bg) 55%),
+                 repeating-linear-gradient(135deg,#0b0c0e 0 2px,#09090b 2px 4px);
+    }
+    button, input { font:inherit; }
+    button { cursor:pointer; }
+    button:disabled, input:disabled { cursor:not-allowed; opacity:.38; }
+    .app { width:100%; max-width:460px; display:flex; flex-direction:column; gap:14px; }
+    .checker {
+      height:8px; border-radius:4px;
+      background:conic-gradient(#eee 25%,#111 0 50%,#eee 0 75%,#111 0) 0 0/12px 12px;
+    }
+    header, .panel {
+      background:linear-gradient(180deg,var(--panel),#101318);
+      border:1px solid var(--border); border-radius:15px;
+    }
+    header {
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      padding:14px 16px;
+    }
+    .eyebrow { color:var(--red); font-size:10px; letter-spacing:.18em; text-transform:uppercase; }
+    h1 { margin:3px 0 0; font:700 20px "Space Grotesk",sans-serif; }
+    .header-actions { display:flex; align-items:center; gap:9px; }
+    .status { display:flex; align-items:center; gap:7px; color:var(--muted); font-size:11px; }
+    .dot { width:9px; height:9px; border-radius:50%; background:var(--muted); }
+    .dot.on { background:var(--online); box-shadow:0 0 0 4px #29e7cd22; }
+    .connect, .icon-btn, .stop, .apply {
+      border-radius:9px; border:1px solid var(--border); padding:10px 12px;
+    }
+    .connect { color:#fff; background:linear-gradient(180deg,var(--red),#c4172c); font-size:11px; font-weight:700; }
+    .connect.connected { color:var(--online); background:transparent; border-color:var(--online); }
+    .icon-btn { color:var(--text); background:var(--panel2); padding:8px 10px; }
+    .panel { padding:16px; }
+    .panel-title { margin:0 0 12px; color:var(--muted); font-size:11px; letter-spacing:.14em; text-transform:uppercase; }
+    .dashboard { display:flex; flex-direction:column; align-items:center; gap:14px; overflow:hidden; }
+    .wheel-stage { width:220px; height:220px; display:grid; place-items:center; }
+    .wheel {
+      position:relative; width:200px; height:200px; border-radius:50%; border:7px solid #050506;
+      background:radial-gradient(circle,#23262c 0%,#16181c 62%,#0c0d10 100%);
+      box-shadow:0 0 0 2px #2c3038 inset,0 10px 30px #0009;
+      transition:transform .16s ease;
+    }
+    .wheel.left { transform:rotate(-25deg); }
+    .wheel.right { transform:rotate(25deg); }
+    .spoke { position:absolute; left:50%; top:50%; background:#2c3038; border-radius:8px; }
+    .spoke.v { width:14px; height:150px; transform:translate(-50%,-50%); }
+    .spoke.a, .spoke.b { width:150px; height:14px; transform:translate(-50%,-50%) rotate(58deg); }
+    .spoke.b { transform:translate(-50%,-50%) rotate(-58deg); }
+    .wheel-stop {
+      position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+      width:64px; height:64px; border-radius:50%; border:2px solid var(--red);
+      background:#111; color:var(--red); font:700 11px "Space Grotesk",sans-serif; z-index:3;
+    }
+    .turn {
+      position:absolute; top:50%; transform:translateY(-50%); z-index:4;
+      width:40px; height:58px; border-radius:13px; border:1px solid #3a4049;
+      background:linear-gradient(180deg,#2a2f37,#16181c); color:white; touch-action:none;
+    }
+    .turn.l { left:-7px; } .turn.r { right:-7px; }
+    .turn.pressed, .pedal.pressed { border-color:var(--red); filter:brightness(1.45); }
+    .pedals { display:flex; gap:12px; width:100%; }
+    .pedal {
+      flex:1; min-height:76px; padding:12px 8px; border-radius:12px;
+      border:1px solid var(--border); color:var(--text);
+      display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+      font:700 12px "Space Grotesk",sans-serif; touch-action:none;
+    }
+    .pedal.brake { background:linear-gradient(180deg,#3a1016,var(--panel2)); }
+    .pedal.gas { background:linear-gradient(180deg,#123420,var(--panel2)); }
+    .key { font:10px "IBM Plex Mono",monospace; opacity:.7; }
+    .hint { margin:0; color:var(--muted); font-size:10px; line-height:1.6; text-align:center; }
+    .readout { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:10px; }
+    .gear-label { color:var(--amber); font:700 13px "Space Grotesk",sans-serif; text-transform:uppercase; }
+    .speed-digital { font:800 34px Orbitron,sans-serif; text-shadow:0 0 14px #ffcc0055; }
+    .pct { color:var(--muted); font-size:15px; }
+    .rpm { height:10px; margin-bottom:16px; overflow:hidden; border:1px solid var(--border); border-radius:8px; background:#0b0d10; }
+    .rpm-fill { height:100%; width:60%; background:linear-gradient(90deg,var(--green),var(--amber) 60%,var(--red)); transition:width .15s; }
+    .shifter { position:relative; display:flex; gap:6px; padding:6px; border:1px solid var(--border); border-radius:12px; background:#0b0d10; }
+    .gear {
+      flex:1; position:relative; z-index:2; padding:8px 3px; border:0; border-radius:8px;
+      background:transparent; color:var(--muted); font:700 11px "Space Grotesk",sans-serif;
+    }
+    .gear.active { color:#080808; background:var(--amber); }
+    .gear:first-child.active { background:var(--green); }
+    .gear:last-child.active { background:var(--red); color:white; }
+    .gear span { display:block; font-size:16px; }
+    .fine { display:flex; align-items:center; gap:12px; margin-top:15px; }
+    input[type=range] { flex:1; accent-color:var(--amber); }
+    .value { min-width:42px; color:var(--amber); text-align:right; font-size:12px; }
+    .swatches { display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
+    .swatch { width:30px; height:30px; border:2px solid var(--border); border-radius:50%; }
+    input[type=color] { width:38px; height:32px; padding:2px; border:1px solid var(--border); border-radius:7px; background:none; }
+    .apply { padding:7px 10px; background:var(--panel2); color:var(--text); font-size:11px; }
+    .stop { width:100%; padding:15px; background:linear-gradient(180deg,var(--red),#a11224); color:white; border:0; font:700 15px "Space Grotesk",sans-serif; }
+    details summary { cursor:pointer; color:var(--muted); font-size:11px; letter-spacing:.12em; text-transform:uppercase; }
+    .terminal { height:145px; margin-top:10px; padding:10px; overflow:auto; border:1px solid var(--border); border-radius:10px; background:#05070a; font-size:11px; line-height:1.6; }
+    .out { color:var(--amber); } .inc { color:var(--online); } .sys { color:var(--muted); }
+    @media (max-width:380px) {
+      body { padding:9px; } header { padding:11px; } .status { font-size:9px; }
+      .header-actions { gap:5px; } .wheel-stage { transform:scale(.92); margin:-8px 0; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <div class="checker"></div>
+
+    <header>
+      <div>
+        <div class="eyebrow">Enlace UART · Racing</div>
+        <h1>Cutebot Ctrl</h1>
+      </div>
+      <div class="header-actions">
+        <div class="status"><span class="dot" id="dot"></span><span id="statusText">sin conexión</span></div>
+        <button class="icon-btn" id="soundToggle" type="button" title="Activar o silenciar sonido">🔊</button>
+        <button class="connect" id="connectBtn" type="button">Conectar</button>
+      </div>
+    </header>
+
+    <section class="panel dashboard">
+      <div class="wheel-stage">
+        <div class="wheel" id="wheel">
+          <div class="spoke v"></div><div class="spoke a"></div><div class="spoke b"></div>
+          <button class="turn l" id="btnL" type="button" disabled>◀</button>
+          <button class="turn r" id="btnR" type="button" disabled>▶</button>
+          <button class="wheel-stop" id="btnSmini" type="button" disabled>STOP</button>
+        </div>
+      </div>
+      <div class="pedals">
+        <button class="pedal brake" id="btnB" type="button" disabled>🛑<span>FRENO / REVERSA</span><span class="key">TECLA S</span></button>
+        <button class="pedal gas" id="btnF" type="button" disabled>🏎️<span>ACELERAR</span><span class="key">TECLA W</span></button>
+      </div>
+      <p class="hint">Volante: A / D · Pedales: W / S · Espacio o Escape: detener</p>
+    </section>
+
+    <section class="panel">
+      <p class="panel-title">Caja de cambios</p>
+      <div class="readout">
+        <span class="gear-label" id="gearLabel">Normal</span>
+        <span class="speed-digital"><span id="speedVal">60</span><span class="pct">%</span></span>
+      </div>
+      <div class="rpm"><div class="rpm-fill" id="rpmFill"></div></div>
+      <div class="shifter">
+        <button class="gear" id="gearTortuga" data-speed="25" type="button" disabled><span>🐢</span>Tortuga</button>
+        <button class="gear active" id="gearNormal" data-speed="60" type="button" disabled><span>N</span>Normal</button>
+        <button class="gear" id="gearCarreras" data-speed="100" type="button" disabled><span>🏁</span>Carreras</button>
+      </div>
+      <div class="fine">
+        <input type="range" id="speed" min="0" max="100" value="60" disabled>
+        <span class="value" id="speedTrimVal">60%</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <p class="panel-title">Faros LED</p>
+      <div class="swatches">
+        <button class="swatch" type="button" style="background:#ff3b30" data-hex="FF3B30" aria-label="Rojo" disabled></button>
+        <button class="swatch" type="button" style="background:#22c55e" data-hex="22C55E" aria-label="Verde" disabled></button>
+        <button class="swatch" type="button" style="background:#2e7cf6" data-hex="2E7CF6" aria-label="Azul" disabled></button>
+        <button class="swatch" type="button" style="background:#ffcc00" data-hex="FFCC00" aria-label="Amarillo" disabled></button>
+        <button class="swatch" type="button" style="background:#fff" data-hex="FFFFFF" aria-label="Blanco" disabled></button>
+        <button class="swatch" type="button" style="background:#000" data-hex="000000" aria-label="Apagar" disabled></button>
+        <input type="color" id="customColor" value="#ffcc00" disabled>
+        <button class="apply" id="applyColor" type="button" disabled>Aplicar</button>
+      </div>
+    </section>
+
+    <button class="stop" id="bigStop" type="button" disabled>🏁 PARADA DE EMERGENCIA</button>
+
+    <details class="panel">
+      <summary>Terminal de transmisión</summary>
+      <div class="terminal" id="terminal" aria-live="polite"></div>
+    </details>
+
+    <p class="hint">Usa Chrome o Edge en ordenador o Android. Web Bluetooth requiere una conexión segura (HTTPS o localhost). Safari en iPhone no es compatible de forma estándar.</p>
+  </main>
+
+<script>
+  // UUID UART de micro:bit:
+  // 0002 = RX del micro:bit (la página web escribe los comandos aquí).
+  // 0003 = TX del micro:bit (la página web escucha respuestas aquí).
+  const UART_SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+  const UART_RX_CHARACTERISTIC_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
+  const UART_TX_CHARACTERISTIC_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
+
+  let device = null;
+  let rxChar = null;
+  let txChar = null;
+  let connected = false;
+  let heldKeys = [];
+  let soundOn = true;
+  let audioCtx = null;
+  let engineOsc = null;
+  let engineGain = null;
+
+  const $ = (id) => document.getElementById(id);
+  const dot = $("dot");
+  const statusText = $("statusText");
+  const connectBtn = $("connectBtn");
+  const terminal = $("terminal");
+  const wheel = $("wheel");
+  const speedSlider = $("speed");
+
+  const controlIds = [
+    "btnF", "btnB", "btnL", "btnR", "btnSmini", "bigStop",
+    "speed", "gearTortuga", "gearNormal", "gearCarreras",
+    "customColor", "applyColor"
+  ];
+  const controls = controlIds.map($);
+  const swatches = [...document.querySelectorAll(".swatch")];
+
+  function log(message, className = "sys") {
+    const line = document.createElement("div");
+    line.className = className;
+    line.textContent = message;
+    terminal.appendChild(line);
+    while (terminal.children.length > 60) terminal.removeChild(terminal.firstChild);
+    terminal.scrollTop = terminal.scrollHeight;
+  }
+
+  function setControlsEnabled(enabled) {
+    controls.forEach((element) => element.disabled = !enabled);
+    swatches.forEach((element) => element.disabled = !enabled);
+  }
+
+  function updateStatus(isConnected) {
+    connected = isConnected;
+    dot.classList.toggle("on", isConnected);
+    statusText.textContent = isConnected ? "conectado" : "sin conexión";
+    connectBtn.textContent = isConnected ? "Desconectar" : "Conectar";
+    connectBtn.classList.toggle("connected", isConnected);
+    setControlsEnabled(isConnected);
+  }
+
+  async function sendCommand(command) {
+    if (!connected || !rxChar) return;
+    try {
+      // MakeCode UART recibe cada comando terminado en salto de línea.
+      const bytes = new TextEncoder().encode(command + "\n");
+      await rxChar.writeValue(bytes);
+      log("> " + command, "out");
+    } catch (error) {
+      log("Error enviando " + command + ": " + error, "sys");
+    }
+  }
+
+  function handleIncoming(event) {
+    const message = new TextDecoder().decode(event.target.value).trim();
+    if (message) log("< " + message, "inc");
+  }
+
+  async function toggleConnection() {
+    if (connected) {
+      if (device && device.gatt && device.gatt.connected) device.gatt.disconnect();
+      return;
+    }
+
+    if (!navigator.bluetooth) {
+      log("Este navegador no ofrece Web Bluetooth. Prueba Chrome o Edge.", "sys");
+      alert("Este navegador no soporta Web Bluetooth. Usa Chrome o Edge en ordenador o Android.");
+      return;
+    }
+
+    try {
+      connectBtn.disabled = true;
+      device = await navigator.bluetooth.requestDevice({
+        filters: [{ namePrefix: "BBC micro:bit" }],
+        optionalServices: [UART_SERVICE_UUID]
+      });
+      device.removeEventListener("gattserverdisconnected", onDisconnected);
+      device.addEventListener("gattserverdisconnected", onDisconnected);
+
+      log("Conectando a " + (device.name || "micro:bit") + "...", "sys");
+      const server = await device.gatt.connect();
+      const service = await server.getPrimaryService(UART_SERVICE_UUID);
+
+      // RX: escribir comandos desde la web al micro:bit.
+      rxChar = await service.getCharacteristic(UART_RX_CHARACTERISTIC_UUID);
+      // TX: recibir respuestas del micro:bit en la web.
+      txChar = await service.getCharacteristic(UART_TX_CHARACTERISTIC_UUID);
+      await txChar.startNotifications();
+      txChar.addEventListener("characteristicvaluechanged", handleIncoming);
+
+      updateStatus(true);
+      log("Conectado a " + (device.name || "micro:bit"), "sys");
+      await sendCommand("V" + speedSlider.value);
+    } catch (error) {
+      log("No se pudo conectar: " + error, "sys");
+      updateStatus(false);
+    } finally {
+      connectBtn.disabled = false;
+    }
+  }
+
+  function onDisconnected() {
+    heldKeys = [];
+    stopEngineSound();
+    wheel.classList.remove("left", "right");
+    updateStatus(false);
+    log("Bluetooth desconectado", "sys");
+    rxChar = null;
+    txChar = null;
+  }
+
+  function ensureAudio() {
+    if (!audioCtx) {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return null;
+      audioCtx = new AudioContextClass();
+    }
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    return audioCtx;
+  }
+
+  function playGearShift() {
+    if (!soundOn) return;
+    const ctx = ensureAudio();
+    if (!ctx) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "square";
+    osc.frequency.setValueAtTime(520, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(180, ctx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.13);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.14);
+  }
+
+  function startEngineSound(reverse) {
+    if (!soundOn) return;
+    stopEngineSound();
+    const ctx = ensureAudio();
+    if (!ctx) return;
+    engineOsc = ctx.createOscillator();
+    engineGain = ctx.createGain();
+    engineOsc.type = "sawtooth";
+    engineOsc.frequency.setValueAtTime(reverse ? 90 : 70, ctx.currentTime);
+    engineOsc.frequency.linearRampToValueAtTime(reverse ? 130 : 170, ctx.currentTime + 0.5);
+    engineGain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    engineGain.gain.linearRampToValueAtTime(0.05, ctx.currentTime + 0.08);
+    engineOsc.connect(engineGain).connect(ctx.destination);
+    engineOsc.start();
+  }
+
+  function stopEngineSound() {
+    if (!engineOsc || !audioCtx) return;
+    try {
+      engineGain.gain.linearRampToValueAtTime(0.0001, audioCtx.currentTime + 0.12);
+      engineOsc.stop(audioCtx.currentTime + 0.14);
+    } catch (_) {}
+    engineOsc = null;
+    engineGain = null;
+  }
+
+  $("soundToggle").addEventListener("click", () => {
+    soundOn = !soundOn;
+    $("soundToggle").textContent = soundOn ? "🔊" : "🔇";
+    if (!soundOn) stopEngineSound();
+  });
+
+  function setWheelTurn(direction, active) {
+    wheel.classList.remove("left", "right");
+    if (active && direction === "L") wheel.classList.add("left");
+    if (active && direction === "R") wheel.classList.add("right");
+  }
+
+  function bindHold(buttonId, command) {
+    const element = $(buttonId);
+    let active = false;
+
+    const start = (event) => {
+      event.preventDefault();
+      if (!connected || active) return;
+      active = true;
+      element.classList.add("pressed");
+      if (command === "L" || command === "R") setWheelTurn(command, true);
+      if (command === "F") startEngineSound(false);
+      if (command === "B") startEngineSound(true);
+      sendCommand(command);
+    };
+
+    const stop = () => {
+      if (!active) return;
+      active = false;
+      element.classList.remove("pressed");
+      if (command === "L" || command === "R") setWheelTurn(command, false);
+      if (command === "F" || command === "B") stopEngineSound();
+      sendCommand("S");
+    };
+
+    element.addEventListener("pointerdown", start);
+    element.addEventListener("pointerup", stop);
+    element.addEventListener("pointerleave", stop);
+    element.addEventListener("pointercancel", stop);
+    element.addEventListener("lostpointercapture", stop);
+  }
+
+  bindHold("btnF", "F");
+  bindHold("btnB", "B");
+  bindHold("btnL", "L");
+  bindHold("btnR", "R");
+
+  function emergencyStop() {
+    heldKeys.forEach((key) => setKeyVisual(key, false));
+    heldKeys = [];
+    wheel.classList.remove("left", "right");
+    stopEngineSound();
+    sendCommand("S");
+  }
+
+  $("btnSmini").addEventListener("click", emergencyStop);
+  $("bigStop").addEventListener("click", emergencyStop);
+
+  const speedVal = $("speedVal");
+  const speedTrimVal = $("speedTrimVal");
+  const rpmFill = $("rpmFill");
+  const gearLabel = $("gearLabel");
+  const gears = {
+    tortuga: $("gearTortuga"),
+    normal: $("gearNormal"),
+    carreras: $("gearCarreras")
+  };
+  const gearNames = { tortuga: "Tortuga", normal: "Normal", carreras: "Carreras" };
+
+  function paintSpeed(value) {
+    speedVal.textContent = value;
+    speedTrimVal.textContent = value + "%";
+    rpmFill.style.width = value + "%";
+  }
+
+  function setActiveGear(name) {
+    Object.values(gears).forEach((button) => button.classList.remove("active"));
+    if (name && gears[name]) gears[name].classList.add("active");
+    gearLabel.textContent = name ? gearNames[name] : "Manual";
+  }
+
+  function selectGear(name, fromUser = true) {
+    const value = Number(gears[name].dataset.speed);
+    speedSlider.value = value;
+    paintSpeed(value);
+    setActiveGear(name);
+    if (fromUser) {
+      playGearShift();
+      sendCommand("V" + value);
+    }
+  }
+
+  Object.entries(gears).forEach(([name, button]) => {
+    button.addEventListener("click", () => selectGear(name));
+  });
+
+  speedSlider.addEventListener("input", () => {
+    paintSpeed(speedSlider.value);
+    setActiveGear(null);
+  });
+  speedSlider.addEventListener("change", () => sendCommand("V" + speedSlider.value));
+
+  swatches.forEach((button) => {
+    button.addEventListener("click", () => sendCommand("C" + button.dataset.hex));
+  });
+  $("applyColor").addEventListener("click", () => {
+    const hex = $("customColor").value.replace("#", "").toUpperCase();
+    sendCommand("C" + hex);
+  });
+
+  const keyToCommand = { w:"F", s:"B", a:"L", d:"R" };
+  const keyToButton = { w:"btnF", s:"btnB", a:"btnL", d:"btnR" };
+
+  function setKeyVisual(key, pressed) {
+    const button = $(keyToButton[key]);
+    if (button) button.classList.toggle("pressed", pressed);
+    const command = keyToCommand[key];
+    if (command === "L" || command === "R") setWheelTurn(command, pressed);
+  }
+
+  document.addEventListener("keydown", (event) => {
+    const key = event.key.toLowerCase();
+    if (key === " " || key === "escape") {
+      event.preventDefault();
+      emergencyStop();
+      return;
+    }
+    if (!(key in keyToCommand) || event.repeat || !connected) return;
+    event.preventDefault();
+    if (!heldKeys.includes(key)) heldKeys.push(key);
+    setKeyVisual(key, true);
+    if (keyToCommand[key] === "F") startEngineSound(false);
+    if (keyToCommand[key] === "B") startEngineSound(true);
+    sendCommand(keyToCommand[key]);
+  });
+
+  document.addEventListener("keyup", (event) => {
+    const key = event.key.toLowerCase();
+    if (!(key in keyToCommand)) return;
+    heldKeys = heldKeys.filter((item) => item !== key);
+    setKeyVisual(key, false);
+    if (!connected) return;
+    if (heldKeys.length) {
+      const nextKey = heldKeys[heldKeys.length - 1];
+      sendCommand(keyToCommand[nextKey]);
+    } else {
+      stopEngineSound();
+      sendCommand("S");
+    }
+  });
+
+  window.addEventListener("blur", emergencyStop);
+  connectBtn.addEventListener("click", toggleConnection);
+
+  updateStatus(false);
+  paintSpeed(60);
+  setActiveGear("normal");
+  log('Listo. Pulsa "Conectar" y selecciona tu micro:bit.', "sys");
+</script>
+</body>
+</html>
